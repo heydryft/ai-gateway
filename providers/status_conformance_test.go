@@ -35,6 +35,7 @@ import (
 	perplexitypkg "github.com/ferro-labs/ai-gateway/providers/perplexity"
 	qwenpkg "github.com/ferro-labs/ai-gateway/providers/qwen"
 	replicatepkg "github.com/ferro-labs/ai-gateway/providers/replicate"
+	runcratepkg "github.com/ferro-labs/ai-gateway/providers/runcrate"
 	sambanovapkg "github.com/ferro-labs/ai-gateway/providers/sambanova"
 	togetherpkg "github.com/ferro-labs/ai-gateway/providers/together"
 	xaipkg "github.com/ferro-labs/ai-gateway/providers/xai"
@@ -139,6 +140,7 @@ func statusConformanceCases() []statusConformanceCase {
 			}
 			return p
 		}},
+		{name: "runcrate", build: simpleBuild(runcratepkg.New)},
 		{name: "sambanova", build: simpleBuild(sambanovapkg.New)},
 		{name: "together", build: simpleBuild(togetherpkg.New)},
 		{name: "xai", build: simpleBuild(xaipkg.New)},

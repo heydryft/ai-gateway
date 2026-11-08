@@ -117,6 +117,9 @@
       "virtual_key": "qwen"
     },
     {
+      "virtual_key": "runcrate"
+    },
+    {
       "virtual_key": "sambanova"
     }
   ],

@@ -42,6 +42,7 @@ import (
 	perplexitypkg "github.com/ferro-labs/ai-gateway/providers/perplexity"
 	qwenpkg "github.com/ferro-labs/ai-gateway/providers/qwen"
 	replicatepkg "github.com/ferro-labs/ai-gateway/providers/replicate"
+	runcratepkg "github.com/ferro-labs/ai-gateway/providers/runcrate"
 	sambanovapkg "github.com/ferro-labs/ai-gateway/providers/sambanova"
 	togetherpkg "github.com/ferro-labs/ai-gateway/providers/together"
 	vertexaipkg "github.com/ferro-labs/ai-gateway/providers/vertex_ai"
@@ -93,6 +94,7 @@ var expectedSupport = map[string]endpointSupport{
 	NamePerplexity:   {stream: true, proxiable: true},
 	NameQwen:         {stream: true, embed: true, discovery: true, proxiable: true, batch: true},
 	NameReplicate:    {stream: true, image: true, proxiable: true, nonWire: true},
+	NameRuncrate:     {stream: true, discovery: true, proxiable: true},
 	NameSambaNova:    {stream: true, embed: true, discovery: true, proxiable: true, transcription: true},
 	NameTogether:     {stream: true, embed: true, image: true, discovery: true, proxiable: true, rerank: true, transcription: true, speech: true},
 	NameVertexAI:     {stream: true, embed: true, image: true, proxiable: true, nonWire: true},
@@ -129,6 +131,7 @@ var providerTypes = map[string]core.Provider{
 	NamePerplexity:   (*perplexitypkg.Provider)(nil),
 	NameQwen:         (*qwenpkg.Provider)(nil),
 	NameReplicate:    (*replicatepkg.Provider)(nil),
+	NameRuncrate:     (*runcratepkg.Provider)(nil),
 	NameSambaNova:    (*sambanovapkg.Provider)(nil),
 	NameTogether:     (*togetherpkg.Provider)(nil),
 	NameVertexAI:     (*vertexaipkg.Provider)(nil),

@@ -65,6 +65,10 @@ func catalogCoverageExcluded(providerID string) bool {
 		// These providers primarily route user-configured/local model IDs, so a
 		// single embedded public-catalog sample is not stable enough for this gate.
 		return true
+	case providers.NameRuncrate:
+		// Models come from live discovery until ferro-labs/model-catalog carries
+		// Runcrate, so the embedded backup has no sample to resolve yet.
+		return true
 	default:
 		return false
 	}

@@ -27,6 +27,7 @@ import (
 	perplexitypkg "github.com/ferro-labs/ai-gateway/providers/perplexity"
 	qwenpkg "github.com/ferro-labs/ai-gateway/providers/qwen"
 	replicatepkg "github.com/ferro-labs/ai-gateway/providers/replicate"
+	runcratepkg "github.com/ferro-labs/ai-gateway/providers/runcrate"
 	sambanovapkg "github.com/ferro-labs/ai-gateway/providers/sambanova"
 	togetherpkg "github.com/ferro-labs/ai-gateway/providers/together"
 	vertexaipkg "github.com/ferro-labs/ai-gateway/providers/vertex_ai"
@@ -133,6 +134,9 @@ const (
 	// NameReplicate is the canonical name for the Replicate provider.
 	NameReplicate = replicatepkg.Name
 
+	// NameRuncrate is the canonical name for the Runcrate provider.
+	NameRuncrate = runcratepkg.Name
+
 	// NameSambaNova is the canonical name for the SambaNova provider.
 	NameSambaNova = sambanovapkg.Name
 
@@ -171,6 +175,7 @@ func AllProviderNames() []string {
 		NamePerplexity,
 		NameQwen,
 		NameReplicate,
+		NameRuncrate,
 		NameSambaNova,
 		NameTogether,
 		NameVertexAI,

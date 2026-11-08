@@ -82,6 +82,7 @@ func Fixtures() map[string]Fixture {
 		providers.NameOpenRouter:  {Model: "openrouter/auto"},
 		providers.NamePerplexity:  {Model: "sonar"},
 		providers.NameQwen:        {Model: "qwen-turbo"},
+		providers.NameRuncrate:    {Model: "deepseek-ai/DeepSeek-V3.2"},
 		providers.NameSambaNova:   {Model: "Meta-Llama-3.1-8B-Instruct"},
 		providers.NameTogether:    {Model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"},
 		providers.NameXAI:         {Model: "grok-2-latest"},

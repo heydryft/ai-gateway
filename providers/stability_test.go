@@ -30,6 +30,7 @@ import (
 	perplexitypkg "github.com/ferro-labs/ai-gateway/providers/perplexity"
 	qwenpkg "github.com/ferro-labs/ai-gateway/providers/qwen"
 	replicatepkg "github.com/ferro-labs/ai-gateway/providers/replicate"
+	runcratepkg "github.com/ferro-labs/ai-gateway/providers/runcrate"
 	sambanovapkg "github.com/ferro-labs/ai-gateway/providers/sambanova"
 	togetherpkg "github.com/ferro-labs/ai-gateway/providers/together"
 	vertexaipkg "github.com/ferro-labs/ai-gateway/providers/vertex_ai"
@@ -346,6 +347,17 @@ func providerNameStabilityExtensionCases() []providerNameStabilityCase {
 				p, err := replicatepkg.New(testAPIKey, "", nil, nil)
 				if err != nil {
 					t.Fatalf("NewReplicate: %v", err)
+				}
+				return p
+			},
+		},
+		{
+			wantName: NameRuncrate,
+			build: func(t *testing.T) Provider {
+				t.Helper()
+				p, err := runcratepkg.New(testAPIKey, "")
+				if err != nil {
+					t.Fatalf("NewRuncrate: %v", err)
 				}
 				return p
 			},
@@ -670,6 +682,7 @@ func proxyWireShape() map[string]bool {
 		NameOpenRouter:  true,
 		NamePerplexity:  true,
 		NameQwen:        true,
+		NameRuncrate:    true,
 		NameSambaNova:   true,
 		NameTogether:    true,
 		NameXAI:         true,

@@ -31,6 +31,7 @@ import (
 	perplexitypkg "github.com/ferro-labs/ai-gateway/providers/perplexity"
 	qwenpkg "github.com/ferro-labs/ai-gateway/providers/qwen"
 	replicatepkg "github.com/ferro-labs/ai-gateway/providers/replicate"
+	runcratepkg "github.com/ferro-labs/ai-gateway/providers/runcrate"
 	sambanovapkg "github.com/ferro-labs/ai-gateway/providers/sambanova"
 	togetherpkg "github.com/ferro-labs/ai-gateway/providers/together"
 	vertexaipkg "github.com/ferro-labs/ai-gateway/providers/vertex_ai"
@@ -434,6 +435,17 @@ var allProviders = []ProviderEntry{
 				splitModels(cfg[CfgKeyTextModels]),
 				splitModels(cfg[CfgKeyImageModels]),
 			)
+		},
+	},
+	{
+		ID:           NameRuncrate,
+		Capabilities: []string{CapabilityChat, CapabilityStream, CapabilityDiscovery, CapabilityProxy},
+		EnvMappings: []EnvMapping{
+			{CfgKeyAPIKey, "RUNCRATE_API_KEY", true},
+			{CfgKeyBaseURL, "RUNCRATE_BASE_URL", false},
+		},
+		Build: func(cfg ProviderConfig) (Provider, error) {
+			return runcratepkg.New(cfg[CfgKeyAPIKey], cfg[CfgKeyBaseURL])
 		},
 	},
 	{

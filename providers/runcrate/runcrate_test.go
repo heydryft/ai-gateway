@@ -1,0 +1,270 @@
+package runcrate
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/ferro-labs/ai-gateway/providers/core"
+)
+
+const testBearerAPIKey = "Bearer test-key"
+
+func TestNewRuncrate(t *testing.T) {
+	p, err := New("test-key", "")
+	if err != nil {
+		t.Fatalf("New() error: %v", err)
+	}
+	if p.Name() != "runcrate" {
+		t.Errorf("Name() = %q, want runcrate", p.Name())
+	}
+	if p.BaseURL() != "https://api.runcrate.ai/v1" {
+		t.Errorf("BaseURL() = %q", p.BaseURL())
+	}
+}
+
+func TestRuncrateProvider_SupportsModel(t *testing.T) {
+	p, _ := New("test-key", "")
+	if !p.SupportsModel("deepseek-ai/DeepSeek-V3.2") {
+		t.Error("expected deepseek-ai/DeepSeek-V3.2 to be supported")
+	}
+	if !p.SupportsModel("custom-model") {
+		t.Error("passthrough: expected all models to return true")
+	}
+}
+
+func TestRuncrateProvider_CompleteStream_Interface(_ *testing.T) {
+	p, _ := New("test-key", "")
+	var _ core.StreamProvider = p
+}
+
+func TestRuncrateProvider_AuthHeaders(t *testing.T) {
+	p, _ := New("test-key", "")
+	headers := p.AuthHeaders()
+	if headers["Authorization"] != testBearerAPIKey {
+		t.Errorf("AuthHeaders Authorization = %q, want %s", headers["Authorization"], testBearerAPIKey)
+	}
+}
+
+func TestRuncrateProvider_CompleteStream_MockSSE(t *testing.T) {
+	sseData := "data: {\"id\":\"cmpl-1\",\"model\":\"deepseek-ai/DeepSeek-V3.2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":\"\"}]}\n\n" +
+		"data: {\"id\":\"cmpl-1\",\"model\":\"deepseek-ai/DeepSeek-V3.2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":\"\"}]}\n\n" +
+		"data: {\"id\":\"cmpl-1\",\"model\":\"deepseek-ai/DeepSeek-V3.2\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" there\"},\"finish_reason\":\"\"}]}\n\n" +
+		"data: {\"id\":\"cmpl-1\",\"model\":\"deepseek-ai/DeepSeek-V3.2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n" +
+		"data: [DONE]\n\n"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(sseData))
+	}))
+	defer srv.Close()
+
+	p, _ := New("test-key", srv.URL)
+	ch, err := p.CompleteStream(context.Background(), core.Request{
+		Model:    "deepseek-ai/DeepSeek-V3.2",
+		Messages: []core.Message{{Role: "user", Content: "Hi"}},
+	})
+	if err != nil {
+		t.Fatalf("CompleteStream() error: %v", err)
+	}
+
+	var chunks []core.StreamChunk
+	for c := range ch {
+		chunks = append(chunks, c)
+	}
+
+	if len(chunks) < 3 {
+		t.Fatalf("expected at least 3 chunks, got %d", len(chunks))
+	}
+	if chunks[1].Choices[0].Delta.Content != "Hello" {
+		t.Errorf("delta content = %q, want Hello", chunks[1].Choices[0].Delta.Content)
+	}
+	if chunks[2].Choices[0].Delta.Content != " there" {
+		t.Errorf("delta content = %q, want ' there'", chunks[2].Choices[0].Delta.Content)
+	}
+}
+
+func TestRuncrateProvider_Complete_MockHTTP(t *testing.T) {
+	respBody := `{"id":"cmpl-1","model":"deepseek-ai/DeepSeek-V3.2","choices":[{"index":0,"message":{"role":"assistant","content":"Hello!"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(respBody))
+	}))
+	defer srv.Close()
+
+	p, _ := New("test-key", srv.URL)
+	resp, err := p.Complete(context.Background(), core.Request{
+		Model:    "deepseek-ai/DeepSeek-V3.2",
+		Messages: []core.Message{{Role: "user", Content: "Hi"}},
+	})
+	if err != nil {
+		t.Fatalf("Complete() error: %v", err)
+	}
+	if resp.ID != "cmpl-1" {
+		t.Errorf("Response.ID = %q, want cmpl-1", resp.ID)
+	}
+	if len(resp.Choices) == 0 {
+		t.Error("expected at least one choice")
+	}
+}
+
+func TestRuncrateProvider_Complete_ErrorStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":{"message":"Invalid API key","type":"authentication_error"}}`))
+	}))
+	defer srv.Close()
+
+	p, _ := New("bad-key", srv.URL)
+	_, err := p.Complete(context.Background(), core.Request{
+		Model:    "deepseek-ai/DeepSeek-V3.2",
+		Messages: []core.Message{{Role: core.RoleUser, Content: "hi"}},
+	})
+	if err == nil {
+		t.Fatal("Complete() expected an error for 401 response")
+	}
+	if code := core.ParseStatusCode(err); code != http.StatusUnauthorized {
+		t.Errorf("ParseStatusCode() = %d, want 401", code)
+	}
+	if !strings.Contains(err.Error(), "Invalid API key") {
+		t.Errorf("error = %q, want it to contain the upstream message", err.Error())
+	}
+}
+
+func TestRuncrateProvider_Complete_ForwardsRequestBody(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/chat/completions" {
+			t.Errorf("path = %q, want /v1/chat/completions", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+			t.Fatalf("failed to decode request body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"cmpl-1","model":"deepseek-ai/DeepSeek-V3.2","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`))
+	}))
+	defer srv.Close()
+
+	p, _ := New("test-key", srv.URL)
+	_, err := p.Complete(context.Background(), core.Request{
+		Model:    "deepseek-ai/DeepSeek-V3.2",
+		Messages: []core.Message{{Role: core.RoleUser, Content: "Hi"}},
+	})
+	if err != nil {
+		t.Fatalf("Complete() error: %v", err)
+	}
+
+	if gotBody["model"] != "deepseek-ai/DeepSeek-V3.2" {
+		t.Errorf("forwarded model = %v, want deepseek-ai/DeepSeek-V3.2", gotBody["model"])
+	}
+	msgs, ok := gotBody["messages"].([]any)
+	if !ok || len(msgs) != 1 {
+		t.Fatalf("forwarded messages = %#v, want 1 message", gotBody["messages"])
+	}
+	msg, _ := msgs[0].(map[string]any)
+	if msg["role"] != core.RoleUser || msg["content"] != "Hi" {
+		t.Errorf("forwarded message = %#v, want role=user content=Hi", msg)
+	}
+}
+
+// TestRuncrateProvider_Complete_NestedUsage asserts the shared core.Usage decode
+// folds Runcrate's OpenAI-standard nested cache-token accounting
+// (usage.prompt_tokens_details.cached_tokens) into CacheReadTokens without any
+// provider-local usage decode. See the note on Complete() re: the unverified
+// flat-field (top-level usage.cached_tokens) case.
+func TestRuncrateProvider_Complete_NestedUsage(t *testing.T) {
+	respBody := `{"id":"cmpl-1","model":"deepseek-ai/DeepSeek-V3.2","choices":[{"index":0,"message":{"role":"assistant","content":"Hi"},"finish_reason":"stop"}],` +
+		`"usage":{"prompt_tokens":100,"completion_tokens":20,"total_tokens":120,"prompt_tokens_details":{"cached_tokens":64}}}`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(respBody))
+	}))
+	defer srv.Close()
+
+	p, _ := New("test-key", srv.URL)
+	resp, err := p.Complete(context.Background(), core.Request{
+		Model:    "deepseek-ai/DeepSeek-V3.2",
+		Messages: []core.Message{{Role: core.RoleUser, Content: "Hi"}},
+	})
+	if err != nil {
+		t.Fatalf("Complete() error: %v", err)
+	}
+	if resp.Usage.PromptTokens != 100 || resp.Usage.CompletionTokens != 20 || resp.Usage.TotalTokens != 120 {
+		t.Errorf("Usage = %+v, want prompt=100 completion=20 total=120", resp.Usage)
+	}
+	if resp.Usage.CacheReadTokens != 64 {
+		t.Errorf("Usage.CacheReadTokens = %d, want 64 (from prompt_tokens_details.cached_tokens)", resp.Usage.CacheReadTokens)
+	}
+}
+
+func TestRuncrateProvider_DiscoverModels(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		if r.URL.Path != "/v1/models" {
+			t.Errorf("path = %q, want /v1/models", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer test-key" {
+			t.Errorf("Authorization = %q, want Bearer test-key", r.Header.Get("Authorization"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"object":"list","data":[{"id":"deepseek-ai/DeepSeek-V3.2","object":"model","owned_by":"runcrate"},{"id":"Qwen/Qwen3-235B-A22B-Instruct-2507","object":"model"}]}`))
+	}))
+	defer srv.Close()
+
+	p, _ := New("test-key", srv.URL)
+	models, err := p.DiscoverModels(context.Background())
+	if err != nil {
+		t.Fatalf("DiscoverModels() error: %v", err)
+	}
+	if len(models) != 2 {
+		t.Fatalf("expected 2 models, got %d", len(models))
+	}
+	if models[0].ID != "deepseek-ai/DeepSeek-V3.2" || models[0].OwnedBy != "runcrate" {
+		t.Errorf("unexpected model[0]: %+v", models[0])
+	}
+	if models[1].OwnedBy != "runcrate" {
+		t.Errorf("model[1] owned_by fallback = %q, want runcrate", models[1].OwnedBy)
+	}
+}
+
+// TestNewRuncrate_RejectsInvalidBaseURL locks in the base-URL validation.
+func TestNewRuncrate_RejectsInvalidBaseURL(t *testing.T) {
+	if _, err := New("k", "://bad"); err == nil {
+		t.Fatal("New accepted an invalid base URL")
+	}
+}
+
+// TestNewRuncrate_BaseURLIsTheAPIRoot pins the shape a base URL is written in: the
+// API root, used verbatim. The one net: a bare host is not an API root, so it
+// adopts the trailing version segment of the provider's default root.
+func TestNewRuncrate_BaseURLIsTheAPIRoot(t *testing.T) {
+	for base, want := range map[string]string{
+		"":                                      "https://api.runcrate.ai/v1",
+		"https://api.runcrate.ai":               "https://api.runcrate.ai/v1",
+		"https://proxy.example.com/runcrate/v1": "https://proxy.example.com/runcrate/v1",
+	} {
+		p, err := New("test-key", base)
+		if err != nil {
+			t.Fatalf("New(_, %q) error: %v", base, err)
+		}
+		if got := p.BaseURL(); got != want {
+			t.Errorf("New(_, %q).BaseURL() = %q, want %q", base, got, want)
+		}
+	}
+}

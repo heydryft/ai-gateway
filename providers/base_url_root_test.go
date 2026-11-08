@@ -233,6 +233,7 @@ func TestBareHostBaseURLAdoptsVersionSegment(t *testing.T) {
 		"perplexity":   "",        // https://api.perplexity.ai — a bare host
 		"qwen":         "/v1",     // https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 		"replicate":    "/v1",     // https://api.replicate.com/v1
+		"runcrate":     "/v1",     // https://api.runcrate.ai/v1
 		"sambanova":    "/v1",     // https://api.sambanova.ai/v1
 		"together":     "/v1",     // https://api.together.ai/v1
 		"xai":          "/v1",     // https://api.x.ai/v1

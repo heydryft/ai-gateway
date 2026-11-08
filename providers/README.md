@@ -54,6 +54,7 @@ vendor-specific wire with a bespoke adapter (Anthropic Messages, Gemini
 | `perplexity` | openai | ✅ | ✅ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ✅ |
 | `qwen` | openai | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ➖ | ➖ | ✅ | ✅ | ✅ |
 | `replicate` | native | ✅ | ✅ | ➖ | ✅ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ⛔ |
+| `runcrate` | openai | ✅ | ✅ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ✅ | ✅ |
 | `sambanova` | openai | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ✅ | ➖ | ➖ | ✅ | ✅ |
 | `together` | openai | ✅ | ✅ | ✅ | ✅ | ✅ | ➖ | ✅ | ✅ | ➖ | ✅ | ✅ |
 | `vertex-ai` | native | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ➖ | ➖ | ➖ | ⛔ |
